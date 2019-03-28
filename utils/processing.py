@@ -3,11 +3,11 @@ import requests
 from tqdm import tqdm
 from nltk import pos_tag
 from bs4 import BeautifulSoup
-from gensim.models.phrases import Phraser
 from nltk.stem import PorterStemmer
 from nltk.corpus import wordnet as wn
 from nltk.tokenize import word_tokenize
 from nltk.stem.wordnet import WordNetLemmatizer
+from gensim.models.phrases import Phrases, Phraser
 
 
 def convert_attr_to_dict(attr):
@@ -115,6 +115,8 @@ def format_text(text):
 
 
 def map_pos_tag(pos):
+	"""WordNetLemmatizer needs wordnet POS tags. This helper provides the mapping."""
+
 	mappings = {'NN': wn.NOUN, 'JJ': wn.ADJ, 'VB': wn.VERB, 'RB': wn.ADV}
 	pos = pos[:2]
 	if pos in mappings:
@@ -125,6 +127,8 @@ def map_pos_tag(pos):
 
 
 def lem_and_stem(text, stopwords):
+	"""Lemmatize, stem and remove stopwords from text."""
+
 	lemmatizer = WordNetLemmatizer()
 	stemmer = PorterStemmer()
 	processed_text = []
@@ -140,12 +144,13 @@ def lem_and_stem(text, stopwords):
 
 
 def add_bigrams(text):
+	"""Add bigrams to text. Note the mincount threshold."""
 
-	bigram = Phraser(text, min_count=20)  # min freq of 20
+	bigram = Phrases(text, min_count=20)  # min freq of 20
+	bi_phraser = Phraser(bigram)
 	for idx in range(len(text)):
-		for token in bigram[text[idx]]:
+		for token in bi_phraser[text[idx]]:
 			if '_' in token:
-				# Token is a bigram, add to document.
 				text[idx].append(token)
 
 	return text
