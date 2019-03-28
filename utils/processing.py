@@ -1,7 +1,9 @@
 import re
 import requests
-from bs4 import BeautifulSoup
+from tqdm import tqdm
 from nltk import pos_tag
+from bs4 import BeautifulSoup
+from gensim.models.phrases import Phraser
 from nltk.stem import PorterStemmer
 from nltk.corpus import wordnet as wn
 from nltk.tokenize import word_tokenize
@@ -75,6 +77,20 @@ def get_10k_text(url):
 	return headers, text
 
 
+def scrape_edgar(urls):
+	documents = {}
+	section_headers = {}
+	for company, url in tqdm(urls.items()):
+		headers, doc = get_10k_text(url)
+		if doc:  # only keep company if scraping was successful
+			documents[company] = doc
+			section_headers[company] = headers
+			for header in headers:  # correct missidentified headers
+				if len(header) > 100:
+					documents[company].append(header)
+	return documents
+
+
 def format_text(text):
 	"""Remove special characters, too many spaces, tokenize and add POS tagging.
 
@@ -117,5 +133,19 @@ def lem_and_stem(text, stopwords):
 		if not (pos == wn.NOUN):
 			continue
 		if token not in stopwords and len(token) > 3:
-			processed_text.append(stemmer.stem(lemmatizer.lemmatize(token, pos=pos)))
+			processed_token = stemmer.stem(lemmatizer.lemmatize(token, pos=pos))
+			if processed_token not in stopwords:
+				processed_text.append(processed_token)
 	return processed_text
+
+
+def add_bigrams(text):
+
+	bigram = Phraser(text, min_count=20)  # min freq of 20
+	for idx in range(len(text)):
+		for token in bigram[text[idx]]:
+			if '_' in token:
+				# Token is a bigram, add to document.
+				text[idx].append(token)
+
+	return text
